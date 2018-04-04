@@ -1,0 +1,8 @@
+﻿  Source_Client.cpp
+d:\programming\programacion juegos en redes\aa1_udp - taller 6\aa1_udp\gameclient\source_client.cpp(74): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+  Generating code
+  1 of 18 functions ( 5.6%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  GameClient.vcxproj -> D:\PROGRAMMING\Programacion juegos en redes\AA1_UDP - Taller 6\AA1_UDP\x64\Release\GameClient.exe
