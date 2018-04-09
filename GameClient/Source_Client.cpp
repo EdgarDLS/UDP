@@ -7,15 +7,14 @@
 #define PORT_SERVER 50000
 
 int clientId = -1;;
-int pos;
+sf::Vector2i clientPosition;
 sf::UdpSocket sock;
 
 
 struct Player
 {
 	int id;
-	int posX;
-	int posY;
+	sf::Vector2i position;
 	sf::Color color;
 };
 
@@ -31,32 +30,31 @@ void CheckPacket(sf::Packet packet, std::vector<Player>* aPlayers)
 
 		// To check if any player is missing.
 		// Mainly used for the latest players connecting to the server
-		int totalPlayers = 0;		
+		int totalPlayers = 0;
 
 		// Create and store the player
 		Player newPlayer;
 		packet >> newPlayer.id;
-		packet >> newPlayer.posX;
-		packet >> newPlayer.posY;
+		packet >> newPlayer.position.x;
+		packet >> newPlayer.position.y;
+		/*packet >> newPlayer.color.r;
+		packet >> newPlayer.color.g;
+		packet >> newPlayer.color.b;*/
+
 		aPlayers->push_back(newPlayer);
 
 		packet >> totalPlayers;
 
-		std::cout << "TotalPlayers | " << totalPlayers << std::endl;
-		std::cout << "PlayersSize | " << aPlayers->size() << std::endl;
-
-		
 		if (totalPlayers != aPlayers->size())
 		{
+			std::cout << aPlayers->size() << std::endl;
 			std::cout << "Faltan jugadores | Pidiendo informacion al servidor..." << std::endl;
 
 			// Delete all the current players except the client
-			for (int i = aPlayers->size(); i > 0; i--)
+			// The client is always the first position
+			for (int i = 1; i < aPlayers->size(); i++)
 			{
-				if (aPlayers->at(i).id != clientId)
-				{
-					aPlayers->erase(aPlayers->begin() + i);
-				}
+				aPlayers->erase(aPlayers->begin() + i);
 			}
 
 			// Ask the players to the server
@@ -64,12 +62,68 @@ void CheckPacket(sf::Packet packet, std::vector<Player>* aPlayers)
 			resendPlayers << RESEND;
 			sock.send(resendPlayers, IP_SERVER, PORT_SERVER);
 		}
-		
 	}
 
 	else if (packetType == SYNC)
 	{
 		// Sync the missing players
+		int blueColor = 0;
+		Player newPlayer;
+		packet >> newPlayer.id;
+		packet >> newPlayer.position.x;
+		packet >> newPlayer.position.y;
+		/*packet >> newPlayer.color.r;
+		packet >> newPlayer.color.g;
+		packet >> newPlayer.color.b;*/
+
+		aPlayers->push_back(newPlayer);
+
+		std::cout << "Jugador faltante " << newPlayer.id << " añadido" << std::endl;
+
+	}
+
+	else if (packetType == POSITION)
+	{
+		int playerId = -1;
+		int newPosX = -1;
+		int newPosY = -1;
+		
+		packet >> playerId;
+		packet >> newPosX;
+		packet >> newPosY;
+
+		for (int i = 0; i < aPlayers->size(); i++)
+		{
+			if (aPlayers->at(i).id == playerId)
+			{
+				aPlayers->at(i).position.x = newPosX;	
+				aPlayers->at(i).position.y = newPosY;
+
+				if (aPlayers->at(i).id == clientId)
+				{
+					clientPosition.x = newPosX;
+					clientPosition.y = newPosY;
+				}
+			}
+		}
+	}
+
+	else if (packetType == DISCONNECT)
+	{
+		// Remove the discconected player
+		int removableId = -1;
+		packet >> removableId;
+
+		for (int i = 1; i < aPlayers->size(); i++)
+		{
+			if (aPlayers->at(i).id == removableId)
+			{
+				aPlayers->erase(aPlayers->begin() + i);
+			}
+
+		}
+
+		std::cout << "Jugador desconectado | ID desconexion: " << removableId << std::endl;
 	}
 }
 
@@ -83,7 +137,7 @@ void DibujaSFML(std::vector<Player> aPlayers)
 	unsigned short portInitial;
 	bool connectionEstabished = false;
 
-	
+
 	sf::Clock clock;
 
 	do
@@ -108,6 +162,8 @@ void DibujaSFML(std::vector<Player> aPlayers)
 			if (packetType == WELCOME)
 			{
 				firstPacket >> clientId;
+				firstPacket >> clientPosition.x;
+				firstPacket >> clientPosition.y;
 
 				std::cout << "Conexion con el servidor establecida. | ID: " << clientId << std::endl;
 				connectionEstabished = true;
@@ -131,17 +187,47 @@ void DibujaSFML(std::vector<Player> aPlayers)
 			case sf::Event::KeyPressed:
 				if (event.key.code == sf::Keyboard::Left)
 				{
-					sf::Packet pckLeft;
-					int posAux = pos - 1;
-					pckLeft << posAux;
-					sock.send(pckLeft, IP_SERVER, PORT_SERVER);
+					sf::Packet movementPacket;
+					int posX = clientPosition.x - 1;
+
+					movementPacket << POSITION;
+					movementPacket << posX;
+					movementPacket << clientPosition.y;
+
+					sock.send(movementPacket, IP_SERVER, PORT_SERVER);
 				}
 				else if (event.key.code == sf::Keyboard::Right)
 				{
-					sf::Packet pckRight;
-					int posAux = pos + 1;
-					pckRight << posAux;
-					sock.send(pckRight, IP_SERVER, PORT_SERVER);
+					sf::Packet movementPacket;
+					int posX = clientPosition.x + 1;
+
+					movementPacket << POSITION;
+					movementPacket << posX;
+					movementPacket << clientPosition.y;
+
+					sock.send(movementPacket, IP_SERVER, PORT_SERVER);
+				}
+				else if (event.key.code == sf::Keyboard::Up)
+				{
+					sf::Packet movementPacket;
+					int posY = clientPosition.y - 1;
+
+					movementPacket << POSITION;
+					movementPacket << clientPosition.x;
+					movementPacket << posY;
+
+					sock.send(movementPacket, IP_SERVER, PORT_SERVER);
+				}
+				else if (event.key.code == sf::Keyboard::Down)
+				{
+					sf::Packet movementPacket;
+					int posY = clientPosition.y + 1;
+
+					movementPacket << POSITION;
+					movementPacket << clientPosition.x;
+					movementPacket << posY;			
+
+					sock.send(movementPacket, IP_SERVER, PORT_SERVER);
 				}
 				break;
 
@@ -159,9 +245,6 @@ void DibujaSFML(std::vector<Player> aPlayers)
 		if (status == sf::Socket::Done)
 		{
 			CheckPacket(pck, &aPlayers);
-
-			/*pck >> pos;
-			std::cout << "Recibo la confirmacion: " << pos << std::endl;*/
 		}
 
 		window.clear();
@@ -172,24 +255,27 @@ void DibujaSFML(std::vector<Player> aPlayers)
 		window.draw(rectBlanco);
 		rectBlanco.setPosition(sf::Vector2f(600, 0));
 		window.draw(rectBlanco);
-		
+
 
 		for (int i = 0; i < aPlayers.size(); i++)
 		{
 			sf::RectangleShape rectAvatar(sf::Vector2f(60, 60));
 			rectAvatar.setFillColor(sf::Color::Green);
-			rectAvatar.setPosition(sf::Vector2f(aPlayers[i].posX, aPlayers[i].posY));
+			rectAvatar.setPosition(sf::Vector2f(aPlayers[i].position.x, aPlayers[i].position.y));
 			window.draw(rectAvatar);
-		}	
+		}
 
 		window.display();
 	}
+
+	sf::Packet disconnect;
+	disconnect << DISCONNECT;
+	sock.send(disconnect, IP_SERVER, PORT_SERVER);
 }
 
 int main()
 {
 	std::vector<Player> aPlayers;	// List with all the players that are online
-	pos = 200;
 	sock.setBlocking(false);
 	DibujaSFML(aPlayers);
 	return 0;
