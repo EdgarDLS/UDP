@@ -1,6 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Network.hpp>
 #include <iostream>
+#include <PacketType.h>
 
 #define IP_SERVER "localhost"
 #define PORT_SERVER 50000
@@ -8,10 +9,76 @@
 int pos;
 sf::UdpSocket sock;
 
-void DibujaSFML()
-{
 
+struct Player
+{
+	int id;
+	int posX;
+	int posY;
+	sf::Color color;
+};
+
+void CheckPacket(sf::Packet packet, std::vector<Player>* aPlayers)
+{
+	int packetType;
+
+	packet >> packetType;
+
+	if (packetType == PLAYER)
+	{
+		std::cout << "Añadiendo jugador..." << std::endl;
+		// Create and store the player
+		Player newPlayer;
+		packet >> newPlayer.id;
+		packet >> newPlayer.posX;
+		packet >> newPlayer.posY;
+		aPlayers->push_back(newPlayer);
+	}
+}
+
+void DibujaSFML(std::vector<Player> aPlayers)
+{
 	sf::RenderWindow window(sf::VideoMode(800, 600), "Sin acumulación en cliente");
+
+	// Create the first packet to say hello
+	sf::Packet firstPacket;
+	sf::IpAddress ipInitial;		// We always need an ip and port to receive even if we don´t need to use it later.
+	unsigned short portInitial;
+	bool connectionEstabished = false;
+
+	
+	sf::Clock clock;
+
+	do
+	{
+		if (clock.getElapsedTime().asMilliseconds() > 1000)
+		{
+			firstPacket << HELLO;
+			sock.send(firstPacket, IP_SERVER, PORT_SERVER);
+			std::cout << "HELLO enviado" << std::endl;
+
+			clock.restart();
+		}
+
+		// Receive the welcoming from the server
+		sf::Socket::Status status = sock.receive(firstPacket, ipInitial, portInitial);
+
+		if (status == sf::Socket::Done)
+		{
+			int packetType;
+			firstPacket >> packetType;
+
+			if (packetType == WELCOME)
+			{
+				int clientId;
+				firstPacket >> clientId;
+
+				std::cout << "Conexion con el servidor establecida. | ID: " << clientId << std::endl;
+				connectionEstabished = true;
+			}
+		}
+	} while (!connectionEstabished);
+
 
 	while (window.isOpen())
 	{
@@ -32,7 +99,6 @@ void DibujaSFML()
 					int posAux = pos - 1;
 					pckLeft << posAux;
 					sock.send(pckLeft, IP_SERVER, PORT_SERVER);
-
 				}
 				else if (event.key.code == sf::Keyboard::Right)
 				{
@@ -48,7 +114,7 @@ void DibujaSFML()
 
 			}
 		}
-		
+
 		sf::Packet pck;
 		sf::IpAddress ipRem;
 		unsigned short portRem;
@@ -56,8 +122,10 @@ void DibujaSFML()
 
 		if (status == sf::Socket::Done)
 		{
-			pck >> pos;
-			std::cout << "Recibo la confirmacion: " << pos << std::endl;
+			CheckPacket(pck, &aPlayers);
+
+			/*pck >> pos;
+			std::cout << "Recibo la confirmacion: " << pos << std::endl;*/
 		}
 
 		window.clear();
@@ -68,26 +136,25 @@ void DibujaSFML()
 		window.draw(rectBlanco);
 		rectBlanco.setPosition(sf::Vector2f(600, 0));
 		window.draw(rectBlanco);
-
-		sf::RectangleShape rectAvatar(sf::Vector2f(60, 60));
-		rectAvatar.setFillColor(sf::Color::Green);
-		rectAvatar.setPosition(sf::Vector2f(pos, 280));
-		window.draw(rectAvatar);
-
 		
 
-
-		
+		for (int i = 0; i < aPlayers.size(); i++)
+		{
+			sf::RectangleShape rectAvatar(sf::Vector2f(60, 60));
+			rectAvatar.setFillColor(sf::Color::Green);
+			rectAvatar.setPosition(sf::Vector2f(aPlayers[i].posX, aPlayers[i].posY));
+			window.draw(rectAvatar);
+		}	
 
 		window.display();
 	}
-
 }
 
 int main()
 {
+	std::vector<Player> aPlayers;	// List with all the players that are online
 	pos = 200;
 	sock.setBlocking(false);
-	DibujaSFML();
+	DibujaSFML(aPlayers);
 	return 0;
 }

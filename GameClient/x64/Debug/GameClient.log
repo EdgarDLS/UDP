@@ -1,0 +1,3 @@
+﻿  Source_Client.cpp
+d:\programming\programacion juegos en redes\aa1_udp - taller 6\aa1_udp\gameclient\source_client.cpp(104): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+  GameClient.vcxproj -> D:\PROGRAMMING\Programacion juegos en redes\AA1_UDP - Taller 6\AA1_UDP\x64\Debug\GameClient.exe
