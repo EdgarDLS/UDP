@@ -46,16 +46,23 @@ int main()
 					
 					sock.send(pckSend, ipRem, portRem);
 
-					for (int i = 0; i < aPlayers.size(); i++)
+					int playersSize = aPlayers.size();
+					for (int i = 0; i < playersSize; i++)
 					{
 						sf::Packet pckSend;
 						pckSend << PLAYER;
 						pckSend << id;
 						pckSend << 200 * id;
 						pckSend << 280;
+						pckSend << playersSize;	// To check if the client has all the players
 
 						sock.send(pckSend, aPlayers[i].getIp(), aPlayers[i].getPort());
 					}
+				}
+
+				else if (packetType == RESEND)
+				{
+
 				}
 
 				/*

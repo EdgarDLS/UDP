@@ -6,6 +6,7 @@
 #define IP_SERVER "localhost"
 #define PORT_SERVER 50000
 
+int clientId = -1;;
 int pos;
 sf::UdpSocket sock;
 
@@ -27,12 +28,48 @@ void CheckPacket(sf::Packet packet, std::vector<Player>* aPlayers)
 	if (packetType == PLAYER)
 	{
 		std::cout << "Añadiendo jugador..." << std::endl;
+
+		// To check if any player is missing.
+		// Mainly used for the latest players connecting to the server
+		int totalPlayers = 0;		
+
 		// Create and store the player
 		Player newPlayer;
 		packet >> newPlayer.id;
 		packet >> newPlayer.posX;
 		packet >> newPlayer.posY;
 		aPlayers->push_back(newPlayer);
+
+		packet >> totalPlayers;
+
+		std::cout << "TotalPlayers | " << totalPlayers << std::endl;
+		std::cout << "PlayersSize | " << aPlayers->size() << std::endl;
+
+		
+		if (totalPlayers != aPlayers->size())
+		{
+			std::cout << "Faltan jugadores | Pidiendo informacion al servidor..." << std::endl;
+
+			// Delete all the current players except the client
+			for (int i = aPlayers->size(); i > 0; i--)
+			{
+				if (aPlayers->at(i).id != clientId)
+				{
+					aPlayers->erase(aPlayers->begin() + i);
+				}
+			}
+
+			// Ask the players to the server
+			sf::Packet resendPlayers;
+			resendPlayers << RESEND;
+			sock.send(resendPlayers, IP_SERVER, PORT_SERVER);
+		}
+		
+	}
+
+	else if (packetType == SYNC)
+	{
+		// Sync the missing players
 	}
 }
 
@@ -70,7 +107,6 @@ void DibujaSFML(std::vector<Player> aPlayers)
 
 			if (packetType == WELCOME)
 			{
-				int clientId;
 				firstPacket >> clientId;
 
 				std::cout << "Conexion con el servidor establecida. | ID: " << clientId << std::endl;

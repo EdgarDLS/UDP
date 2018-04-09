@@ -6,6 +6,8 @@ enum PacketType
 	WELCOME,
 	POSITION,
 	PLAYER,
+	RESEND,
+	SYNC,
 	DISCONNECT,
 	ACK
 };
